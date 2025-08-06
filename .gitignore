@@ -1,0 +1,8 @@
+# IDE
+.idea
+
+# Credenciales
+credentials_gcp.json
+
+# Carpetas
+data/input/
