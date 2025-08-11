@@ -18,15 +18,29 @@ def excel_reader(path: str) -> Tuple[List[Tuple[str, str]], str]:
         path: Ruta del directorio
 
     Returns:
-        Tupla con lista de archivos y nombre del warehouse
+        Tupla con lista de archivos (nombre_limpio, ruta_completa) y nombre del warehouse
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"La ruta {path} no existe")
 
-    archivos = [f for f in os.listdir(path) if f.endswith(('.xlsx', '.xls'))]
+    # Filtrar archivos Excel excluyendo temporales
+    todos_archivos = os.listdir(path)
+    archivos_excel = []
 
-    if not archivos:
-        raise ValueError(f"No se encontraron archivos Excel en {path}")
+    for archivo in todos_archivos:
+        # Filtrar archivos temporales de Excel (empiezan con ~$)
+        if archivo.startswith('~$'):
+            continue
+
+        # Solo archivos Excel
+        if archivo.endswith(('.xlsx', '.xls')):
+            # Limpiar nombre del archivo (quitar los primeros 3 caracteres)
+            nombre_limpio = _limpiar_nombre_archivo(archivo)
+            ruta_completa = os.path.join(path, archivo)
+            archivos_excel.append((nombre_limpio, ruta_completa))
+
+    if not archivos_excel:
+        raise ValueError(f"No se encontraron archivos Excel válidos en {path}")
 
     carpeta_padre = os.path.basename(os.path.normpath(path))
     warehouse = _determinar_warehouse(carpeta_padre)
@@ -35,7 +49,28 @@ def excel_reader(path: str) -> Tuple[List[Tuple[str, str]], str]:
     if "MATIAS" in carpeta_padre.upper() or "MATHIAS" in carpeta_padre.upper():
         raise ValueError(f"Nittsu Mathias no está configurado aún. Carpeta: {carpeta_padre}")
 
-    return [(archivo, os.path.join(path, archivo)) for archivo in archivos], warehouse
+    return archivos_excel, warehouse
+
+
+def _limpiar_nombre_archivo(nombre_archivo: str) -> str:
+    """
+    Limpia el nombre del archivo quitando los primeros 3 caracteres
+    Ejemplo: "日通 WK26 MYNY.xlsx" -> "WK26 MYNY.xlsx"
+
+    Args:
+        nombre_archivo: Nombre original del archivo
+
+    Returns:
+        Nombre del archivo sin los primeros 3 caracteres
+    """
+    if len(nombre_archivo) > 3:
+        nombre_limpio = nombre_archivo[3:]
+        # Limpiar espacios adicionales al inicio
+        nombre_limpio = nombre_limpio.lstrip()
+        return nombre_limpio
+    else:
+        # Si el archivo tiene menos de 3 caracteres, devolver original
+        return nombre_archivo
 
 
 def _determinar_warehouse(carpeta_nombre: str) -> str:
@@ -53,3 +88,36 @@ def _determinar_warehouse(carpeta_nombre: str) -> str:
         return WarehouseType.HAKATA.value
     else:
         return WarehouseType.DESCONOCIDO.value
+
+
+def get_excel_files_info(path: str) -> dict:
+    """
+    Obtiene información detallada de los archivos Excel en una ruta
+
+    Args:
+        path: Ruta del directorio
+
+    Returns:
+        Diccionario con información de los archivos
+    """
+    try:
+        archivos, warehouse = excel_reader(path)
+
+        archivos_info = []
+        for nombre_limpio, ruta_completa in archivos:
+            nombre_original = os.path.basename(ruta_completa)
+            archivos_info.append({
+                'nombre_original': nombre_original,
+                'nombre_limpio': nombre_limpio,
+                'ruta_completa': ruta_completa,
+                'tamaño_kb': round(os.path.getsize(ruta_completa) / 1024, 2)
+            })
+
+        return {
+            'warehouse': warehouse,
+            'total_archivos': len(archivos_info),
+            'archivos': archivos_info
+        }
+
+    except Exception as e:
+        return {'error': str(e)}
