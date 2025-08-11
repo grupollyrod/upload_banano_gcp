@@ -1,12 +1,17 @@
-from typing import List
+from typing import List, Tuple
 from openpyxl import load_workbook
 
 from src.excel_bigquery.core.domain.models.archivo_model import ArchivoModel
+from src.excel_bigquery.core.domain.models.caja_model import CajaModel
 from src.excel_bigquery.core.use_cases.interfaces.excel_reader import excel_reader
+from src.excel_bigquery.core.services.caja_processor_service import CajaProcessorService
 from src.config.settings import settings
 
 
 class ExcelProcessorService:
+
+    def __init__(self):
+        self.caja_processor = CajaProcessorService()
 
     def process_excel_files(self, path: str) -> List[ArchivoModel]:
         """
@@ -32,6 +37,38 @@ class ExcelProcessorService:
                 continue
 
         return archivos_models
+
+    def process_excel_files_with_cajas(self, path: str) -> Tuple[List[ArchivoModel], List[CajaModel]]:
+        """
+        Procesa archivos Excel y extrae tanto archivos como cajas
+
+        Args:
+            path: Ruta del directorio con archivos Excel
+
+        Returns:
+            Tupla con (lista de ArchivoModel, lista de CajaModel)
+        """
+        excel_files, warehouse = excel_reader(path)
+        archivos_models = []
+        all_cajas = []
+
+        for nombre_limpio, ruta_archivo in excel_files:
+            try:
+                # Procesar archivo
+                archivo_model = self._process_single_file(
+                    nombre_limpio, ruta_archivo, warehouse
+                )
+                archivos_models.append(archivo_model)
+
+                # Procesar cajas del archivo
+                cajas = self.caja_processor.process_cajas_from_file(archivo_model, ruta_archivo)
+                all_cajas.extend(cajas)
+
+            except Exception as e:
+                print(f"Error procesando {nombre_limpio}: {e}")
+                continue
+
+        return archivos_models, all_cajas
 
     def _process_single_file(self, nombre_archivo: str, ruta_archivo: str, warehouse: str) -> ArchivoModel:
         """
