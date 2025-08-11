@@ -46,6 +46,7 @@ class MenuPrincipal:
 
         print(f"   4. Procesar TODOS los warehouses")
         print(f"   5. Vista previa (sin subir a BigQuery)")
+        print(f"   6. Procesar SOLO archivos (sin cajas)")
         print(f"   0. Salir")
         print("-" * 50)
 
@@ -70,61 +71,117 @@ class MenuPrincipal:
         elif opcion == '5':
             self._mostrar_vista_previa()
 
+        elif opcion == '6':
+            self._procesar_solo_archivos()
+
         else:
             print("❌ Opción no válida. Por favor intenta de nuevo.")
 
         return True
 
     def _procesar_warehouse_individual(self, nombre: str, path: str):
-        """Procesa un warehouse individual"""
+        """Procesa un warehouse individual con cajas"""
         print(f"\n🚀 Procesando warehouse: {nombre}")
         print(f"📁 Ruta: {path}")
 
         # Mostrar vista previa primero
         print("\n📋 Vista previa:")
-        resumen = self.upload_service.get_processing_summary(path)
+        resumen = self.upload_service.get_processing_summary(path, include_cajas=True)
 
         if 'error' in resumen:
             print(f"❌ Error obteniendo vista previa: {resumen['error']}")
             return
 
         print(f"   📄 Archivos encontrados: {resumen['total_files']}")
+        print(f"   📦 Cajas encontradas: {resumen.get('total_cajas', 0)}")
         print(f"   🏭 Warehouses: {', '.join(resumen['warehouses'])}")
         print(f"   📅 Años: {', '.join(map(str, resumen['years']))}")
+
+        if 'cajas_summary' in resumen:
+            print(f"   🍌 Total dedos: {resumen['cajas_summary']['total_dedos']}")
+            print(f"   ⚖️ Peso total: {resumen['cajas_summary']['peso_total_kg']:.2f} kg")
 
         if resumen['total_files'] == 0:
             print("❌ No hay archivos para procesar.")
             return
 
         # Confirmar antes de subir
-        confirmacion = input(f"\n¿Procesar y subir {resumen['total_files']} archivos a BigQuery? (s/N): ").lower()
+        confirmacion = input(
+            f"\n¿Procesar y subir {resumen['total_files']} archivos y {resumen.get('total_cajas', 0)} cajas a BigQuery? (s/N): ").lower()
 
         if confirmacion in ['s', 'si', 'sí', 'y', 'yes']:
-            print(f"\n⏳ Subiendo archivos de {nombre}...")
-            exito = self.upload_service.process_and_upload_excel_files(path)
+            print(f"\n⏳ Subiendo archivos y cajas de {nombre}...")
+            exito = self.upload_service.process_and_upload_excel_files(path, include_cajas=True)
 
             if exito:
-                print(f"✅ Archivos de {nombre} subidos exitosamente!")
+                print(f"✅ Archivos y cajas de {nombre} subidos exitosamente!")
             else:
                 print(f"❌ Error procesando archivos de {nombre}")
         else:
             print("❌ Operación cancelada")
 
+    def _procesar_solo_archivos(self):
+        """Procesa todos los warehouses pero solo archivos, sin cajas"""
+        print(f"\n📁 PROCESANDO SOLO ARCHIVOS (SIN CAJAS)")
+        print("-" * 50)
+
+        # Mostrar menú de warehouses
+        print("\nSelecciona warehouse para procesar solo archivos:")
+        for key, warehouse in self.warehouses_disponibles.items():
+            print(f"   {key}. {warehouse['nombre']}")
+        print("   0. Volver al menú principal")
+
+        opcion = input("\nSelecciona una opción: ").strip()
+
+        if opcion == '0':
+            return
+
+        if opcion in self.warehouses_disponibles:
+            warehouse = self.warehouses_disponibles[opcion]
+
+            print(f"\n🚀 Procesando SOLO archivos de: {warehouse['nombre']}")
+            resumen = self.upload_service.get_processing_summary(warehouse['path'], include_cajas=False)
+
+            if 'error' in resumen:
+                print(f"❌ Error: {resumen['error']}")
+                return
+
+            print(f"   📄 Archivos encontrados: {resumen['total_files']}")
+
+            if resumen['total_files'] > 0:
+                confirmacion = input(f"\n¿Subir solo {resumen['total_files']} archivos (sin cajas)? (s/N): ").lower()
+
+                if confirmacion in ['s', 'si', 'sí', 'y', 'yes']:
+                    print(f"\n⏳ Subiendo solo archivos...")
+                    exito = self.upload_service.process_and_upload_excel_files(warehouse['path'], include_cajas=False)
+
+                    if exito:
+                        print(f"✅ Archivos subidos exitosamente!")
+                    else:
+                        print(f"❌ Error procesando archivos")
+                else:
+                    print("❌ Operación cancelada")
+        else:
+            print("❌ Opción no válida")
+
     def _procesar_todos_warehouses(self):
-        """Procesa todos los warehouses disponibles"""
+        """Procesa todos los warehouses disponibles con cajas"""
         print(f"\n🚀 Procesando TODOS los warehouses disponibles...")
 
         total_archivos = 0
+        total_cajas = 0
         warehouses_procesados = []
 
         # Vista previa de todos
         for key, warehouse in self.warehouses_disponibles.items():
             print(f"\n📋 Vista previa - {warehouse['nombre']}:")
-            resumen = self.upload_service.get_processing_summary(warehouse['path'])
+            resumen = self.upload_service.get_processing_summary(warehouse['path'], include_cajas=True)
 
             if 'error' not in resumen:
                 print(f"   📄 Archivos: {resumen['total_files']}")
+                print(f"   📦 Cajas: {resumen.get('total_cajas', 0)}")
                 total_archivos += resumen['total_files']
+                total_cajas += resumen.get('total_cajas', 0)
                 warehouses_procesados.append(warehouse)
             else:
                 print(f"   ❌ Error: {resumen['error']}")
@@ -137,14 +194,15 @@ class MenuPrincipal:
         print(f"\n📊 RESUMEN TOTAL:")
         print(f"   🏭 Warehouses a procesar: {len(warehouses_procesados)}")
         print(f"   📄 Total de archivos: {total_archivos}")
+        print(f"   📦 Total de cajas: {total_cajas}")
 
-        confirmacion = input(f"\n¿Procesar y subir TODOS los archivos a BigQuery? (s/N): ").lower()
+        confirmacion = input(f"\n¿Procesar y subir TODOS los archivos y cajas a BigQuery? (s/N): ").lower()
 
         if confirmacion in ['s', 'si', 'sí', 'y', 'yes']:
             exitos = 0
             for warehouse in warehouses_procesados:
                 print(f"\n⏳ Procesando {warehouse['nombre']}...")
-                exito = self.upload_service.process_and_upload_excel_files(warehouse['path'])
+                exito = self.upload_service.process_and_upload_excel_files(warehouse['path'], include_cajas=True)
 
                 if exito:
                     print(f"   ✅ {warehouse['nombre']} completado")
@@ -161,30 +219,42 @@ class MenuPrincipal:
         print(f"\n👀 VISTA PREVIA - Todos los warehouses")
         print("-" * 50)
 
-        total_global = 0
+        total_global_archivos = 0
+        total_global_cajas = 0
 
         for key, warehouse in self.warehouses_disponibles.items():
             print(f"\n🏭 {warehouse['nombre']}:")
             print(f"   📁 Ruta: {warehouse['path']}")
 
-            resumen = self.upload_service.get_processing_summary(warehouse['path'])
+            resumen = self.upload_service.get_processing_summary(warehouse['path'], include_cajas=True)
 
             if 'error' not in resumen:
                 print(f"   📄 Archivos encontrados: {resumen['total_files']}")
+                print(f"   📦 Cajas encontradas: {resumen.get('total_cajas', 0)}")
+
                 if resumen['total_files'] > 0:
                     print(f"   📅 Años: {', '.join(map(str, resumen['years']))}")
                     print(f"   📋 Archivos:")
-                    for archivo in resumen['files_detail'][:5]:  # Mostrar solo los primeros 5
-                        print(f"      - {archivo['archivo']} ({archivo['annio']}, Sem: {archivo['semana']})")
+                    for archivo in resumen['files_detail'][:3]:  # Mostrar solo los primeros 3
+                        cajas_count = archivo.get('cajas_count', 0)
+                        print(
+                            f"      - {archivo['archivo']} ({archivo['annio']}, Sem: {archivo['semana']}, Cajas: {cajas_count})")
 
-                    if len(resumen['files_detail']) > 5:
-                        print(f"      ... y {len(resumen['files_detail']) - 5} más")
+                    if len(resumen['files_detail']) > 3:
+                        print(f"      ... y {len(resumen['files_detail']) - 3} más")
 
-                total_global += resumen['total_files']
+                    if 'cajas_summary' in resumen:
+                        print(f"   🍌 Total dedos: {resumen['cajas_summary']['total_dedos']}")
+                        print(f"   ⚖️ Peso total: {resumen['cajas_summary']['peso_total_kg']:.2f} kg")
+
+                total_global_archivos += resumen['total_files']
+                total_global_cajas += resumen.get('total_cajas', 0)
             else:
                 print(f"   ❌ Error: {resumen['error']}")
 
-        print(f"\n📊 TOTAL GLOBAL: {total_global} archivos")
+        print(f"\n📊 TOTAL GLOBAL:")
+        print(f"   📄 Archivos: {total_global_archivos}")
+        print(f"   📦 Cajas: {total_global_cajas}")
 
     def ejecutar(self):
         """Ejecuta el menú principal"""
