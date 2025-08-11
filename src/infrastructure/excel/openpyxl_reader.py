@@ -1,84 +1,74 @@
-from openpyxl import load_workbook
-from src.excel_bigquery.core.use_cases.interfaces.excel_reader import excel_reader
+import sys
+import os
 import pandas as pd
 
+# Agregar el directorio raíz al path para imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-path = "D://00-Grupo Llyrod//01-Banano//02-Programa//upload_banano_gcp//data//input//1. JPN Weight inspection//0. Nittsu Matias//"
-
-
-def load_excel(pt):
-    excel, warehouse = excel_reader(pt)
-    dataframes = []
-
-    for nombre, xls in excel:
-        wb_obj = load_workbook(xls)
-        sheet_obj = wb_obj.active
-
-        # cell_obj = sheet_obj["A1"]
-        # print(cell_obj.value)
-
-        # data = []
-
-        puerto = sheet_obj["G1"].value.upper()
-        anio_texto = sheet_obj["A2"].value
-        anio = int(anio_texto[4:])
-        semana = int(sheet_obj["T1"].value)
-        archivo = nombre
-        buque = sheet_obj["B1"].value
-        n_archivo = sheet_obj["Q1"].value
-        id_archivo = f"{puerto}_{anio}_{archivo}_{n_archivo}"
-
-
-        data = {
-            "id_archivo": [id_archivo],
-            "archivo": [archivo],
-            "warehouse": [warehouse],
-            "anio": [anio],
-            "semana": [semana],
-            "puerto": [puerto],
-            "buque": [buque]
-        }
-
-        df = pd.DataFrame(data)
-        dataframes.append(df)
-
-    # if dataframes:
-        result = pd.concat(dataframes, ignore_index=True)
-        # print(result)
-        return result
-    # else:
-    #     print("No hay datos para mostrar.")
-    #     return pd.DataFrame()
-
-carga = load_excel(path)
-print(carga)
+from src.excel_bigquery.core.services.upload_service import UploadService
 
 
 
+def load_excel_to_dataframe(path: str) -> pd.DataFrame:
+    """
+    Procesa archivos Excel y retorna un DataFrame con los datos
+
+    Args:
+        path: Ruta del directorio con archivos Excel
+
+    Returns:
+        DataFrame con los datos procesados
+    """
+    from src.excel_bigquery.core.services.excel_processor_service import ExcelProcessorService
+
+    processor = ExcelProcessorService()
+    archivos_models = processor.process_excel_files(path)
+
+    if not archivos_models:
+        return pd.DataFrame()
+
+    # Convertir modelos a diccionarios para DataFrame
+    data_list = []
+    for modelo in archivos_models:
+        data_list.append({
+            'id_archivo': modelo.id_archivo,
+            'archivo': modelo.archivo,
+            'warehouse': modelo.warehouse,
+            'puerto': modelo.puerto,
+            'buque': modelo.buque,
+            'annio': modelo.annio,
+            'semana': modelo.semana,
+            'spec': modelo.spec,
+            'tipo': modelo.tipo
+        })
+
+    return pd.DataFrame(data_list)
 
 
+def process_and_upload_to_bigquery(path: str, check_duplicates: bool = True) -> bool:
+    """
+    Procesa archivos Excel y los sube a BigQuery
+
+    Args:
+        path: Ruta del directorio con archivos Excel
+        check_duplicates: Si verificar duplicados antes de subir
+
+    Returns:
+        True si el proceso fue exitoso
+    """
+    upload_service = UploadService()
+    return upload_service.process_and_upload_excel_files(path, check_duplicates)
 
 
+def get_processing_preview(path: str) -> dict:
+    """
+    Obtiene una vista previa del procesamiento sin subir datos
 
+    Args:
+        path: Ruta del directorio con archivos Excel
 
-
-
-
-
-
-
-
-
-
-
-
-
-# print(excel)
-
-
-carga = load_excel(path)
-
-print(carga)
-
-
-
+    Returns:
+        Diccionario con información del procesamiento
+    """
+    upload_service = UploadService()
+    return upload_service.get_processing_summary(path)
