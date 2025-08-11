@@ -8,7 +8,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from src.excel_bigquery.core.services.upload_service import UploadService
 
 
-
 def load_excel_to_dataframe(path: str) -> pd.DataFrame:
     """
     Procesa archivos Excel y retorna un DataFrame con los datos
