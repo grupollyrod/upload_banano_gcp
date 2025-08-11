@@ -1,8 +1,7 @@
 from typing import List
-import pandas as pd
 from openpyxl import load_workbook
 
-from src.excel_bigquery.core.models.archivo_model import ArchivoModel
+from src.excel_bigquery.core.domain.models.archivo_model import ArchivoModel
 from src.excel_bigquery.core.use_cases.interfaces.excel_reader import excel_reader
 from src.config.settings import settings
 
@@ -22,14 +21,14 @@ class ExcelProcessorService:
         excel_files, warehouse = excel_reader(path)
         archivos_models = []
 
-        for nombre_archivo, ruta_archivo in excel_files:
+        for nombre_limpio, ruta_archivo in excel_files:
             try:
                 archivo_model = self._process_single_file(
-                    nombre_archivo, ruta_archivo, warehouse
+                    nombre_limpio, ruta_archivo, warehouse
                 )
                 archivos_models.append(archivo_model)
             except Exception as e:
-                print(f"Error procesando {nombre_archivo}: {e}")
+                print(f"Error procesando {nombre_limpio}: {e}")
                 continue
 
         return archivos_models
@@ -39,7 +38,7 @@ class ExcelProcessorService:
         Procesa un archivo Excel individual
 
         Args:
-            nombre_archivo: Nombre del archivo
+            nombre_archivo: Nombre limpio del archivo (sin los primeros 3 caracteres)
             ruta_archivo: Ruta completa del archivo
             warehouse: Tipo de warehouse
 
@@ -59,12 +58,12 @@ class ExcelProcessorService:
         anio_texto = str(sheet_obj["A2"].value) if sheet_obj["A2"].value else ""
         annio = self._extract_year(anio_texto)
 
-        # Crear ID del archivo
+        # Crear ID del archivo usando el nombre limpio
         id_archivo = f"{warehouse}_{annio}_{nombre_archivo}_{n_archivo}"
 
         return ArchivoModel(
             id_archivo=id_archivo,
-            archivo=nombre_archivo,
+            archivo=nombre_archivo,  # Usar nombre limpio
             warehouse=warehouse,
             puerto=puerto,
             buque=buque,
