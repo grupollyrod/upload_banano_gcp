@@ -21,8 +21,8 @@ class Settings:
     hakata_path: str = os.getenv('HAKATA_PATH', '')
 
     # Processing Configuration
-    spec_value: int = int(os.getenv('SPEC_VALUE', '30'))
-    tipo_default: str = os.getenv('TIPO_DEFAULT', 'CGC')
+    spec_value: int = int(os.getenv('SPEC_VALUE', ''))
+    tipo_default: str = os.getenv('TIPO_DEFAULT', '')
 
     def validate(self):
         """Valida que las configuraciones requeridas estén presentes"""
