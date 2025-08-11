@@ -5,7 +5,7 @@ from typing import List
 import logging
 
 from src.config.settings import settings
-from src.excel_bigquery.core.models.archivo_model import ArchivoModel
+from src.excel_bigquery.core.domain.models.archivo_model import ArchivoModel
 
 logger = logging.getLogger(__name__)
 
