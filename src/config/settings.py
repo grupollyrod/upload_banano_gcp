@@ -14,7 +14,7 @@ class Settings:
     dataset_id: str = os.getenv('DATASET_ID', 'bd_banano')
     location: str = os.getenv('LOCATION', 'US')
 
-    # Paths Configuration - Solo las que vamos a usar
+    # Paths Configuration
     base_path: str = os.getenv('BASE_PATH', '')
     nittsu_path: str = os.getenv('NITTSU_PATH', '')
     kobe_path: str = os.getenv('KOBE_PATH', '')
@@ -23,6 +23,8 @@ class Settings:
     # Processing Configuration
     spec_value: int = int(os.getenv('SPEC_VALUE', '30'))
     tipo_default: str = os.getenv('TIPO_DEFAULT', 'CGC')
+    uw_threshold: int = int(os.getenv('UW_THRESHOLD', '560'))
+    ow_threshold: int = int(os.getenv('OW_THRESHOLD', '725'))
 
     # Logging Configuration
     log_level: str = os.getenv('LOG_LEVEL', 'INFO')
