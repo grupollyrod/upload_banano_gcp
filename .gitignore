@@ -7,4 +7,5 @@ credentials_gcp.json
 # Carpetas
 data/input/
 
-
+# Ignorar variable de entorno
+.env
