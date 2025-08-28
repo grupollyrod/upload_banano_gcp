@@ -34,6 +34,7 @@ config.ini
 
 # Variables de entorno
 .env
+.env.example
 .env.local
 .env.*.local
 
